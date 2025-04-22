@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="${title}">View Site Map</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .status-badge {
+            margin-left: 10px;
+        }
+        .status-pending { background-color: #6c757d; }
+        .status-in-progress { background-color: #007bff; }
+        .status-completed { background-color: #28a745; }
+        .status-failed { background-color: #dc3545; }
+
+        .tree-container {
+            margin-top: 20px;
+            overflow: auto;
+            max-height: 600px;
+        }
+
+        .tree ul {
+            padding-left: 20px;
+        }
+
+        .tree li {
+            list-style-type: none;
+            margin: 10px 0;
+            position: relative;
+        }
+
+        .tree li::before {
+            content: "";
+            position: absolute;
+            top: -5px;
+            left: -15px;
+            border-left: 1px solid #ccc;
+            border-bottom: 1px solid #ccc;
+            width: 15px;
+            height: 15px;
+        }
+
+        .tree li::after {
+            content: "";
+            position: absolute;
+            border-left: 1px solid #ccc;
+            left: -15px;
+            bottom: -10px;
+            top: 10px;
+        }
+
+        .tree li:last-child::after {
+            display: none;
+        }
+
+        .tree li:only-child::after {
+            display: none;
+        }
+
+        .tree li:only-child::before {
+            display: none;
+        }
+
+        .tree .page-node {
+            border: 1px solid #ddd;
+            padding: 5px 10px;
+            border-radius: 5px;
+            display: inline-block;
+            margin-bottom: 5px;
+        }
+
+        .tree .page-node.success {
+            background-color: #d4edda;
+        }
+
+        .tree .page-node.error {
+            background-color: #f8d7da;
+        }
+
+        .progress-container {
+            margin-top: 20px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <div class="row mb-4">
+            <div class="col">
+                <h1>Site Map: <span th:text="${siteMap.startUrl}">URL</span></h1>
+                <p class="lead">
+                    <span th:class="'badge status-badge status-' + ${#strings.toLowerCase(siteMap.status)}" 
+                          th:text="${siteMap.status}">Status</span>
+                </p>
+            </div>
+            <div class="col-auto">
+                <a href="/" class="btn btn-outline-secondary">Back to Home</a>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-4">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h2>Details</h2>
+                    </div>
+                    <div class="card-body">
+                        <p>
+                            <strong>Status:</strong> 
+                            <span th:text="${siteMap.status}">Status</span>
+                        </p>
+                        <p>
+                            <strong>Started:</strong> 
+                            <span th:text="${#temporals.format(siteMap.startTime, 'yyyy-MM-dd HH:mm:ss')}">Start Time</span>
+                        </p>
+                        <p th:if="${siteMap.endTime != null}">
+                            <strong>Completed:</strong> 
+                            <span th:text="${#temporals.format(siteMap.endTime, 'yyyy-MM-dd HH:mm:ss')}">End Time</span>
+                        </p>
+                        <p>
+                            <strong>Duration:</strong> 
+                            <span id="duration" th:text="${siteMap.durationSeconds} + ' seconds'">Duration</span>
+                        </p>
+                        <p>
+                            <strong>Total Pages:</strong> 
+                            <span id="totalPages" th:text="${siteMap.totalPages}">0</span>
+                        </p>
+                        <p>
+                            <strong>Successful Pages:</strong> 
+                            <span id="successfulPages" th:text="${siteMap.successfulPages}">0</span>
+                        </p>
+                        <p>
+                            <strong>Failed Pages:</strong> 
+                            <span id="failedPages" th:text="${siteMap.failedPages}">0</span>
+                        </p>
+                    </div>
+                </div>
+
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h2>Configuration</h2>
+                    </div>
+                    <div class="card-body">
+                        <p>
+                            <strong>Maximum Depth:</strong> 
+                            <span th:text="${siteMap.config.maxDepth}">3</span>
+                        </p>
+                        <p>
+                            <strong>Maximum Threads:</strong> 
+                            <span th:text="${siteMap.config.maxThreads}">4</span>
+                        </p>
+                        <p>
+                            <strong>Stay on Domain:</strong> 
+                            <span th:text="${siteMap.config.stayOnDomain ? 'Yes' : 'No'}">Yes</span>
+                        </p>
+                        <p>
+                            <strong>Respect robots.txt:</strong> 
+                            <span th:text="${siteMap.config.respectRobotsTxt ? 'Yes' : 'No'}">Yes</span>
+                        </p>
+                        <p th:if="${!siteMap.config.includePatterns.isEmpty()}">
+                            <strong>Include Patterns:</strong> 
+                            <span th:text="${#strings.listJoin(siteMap.config.includePatterns, ', ')}">Patterns</span>
+                        </p>
+                        <p th:if="${!siteMap.config.excludePatterns.isEmpty()}">
+                            <strong>Exclude Patterns:</strong> 
+                            <span th:text="${#strings.listJoin(siteMap.config.excludePatterns, ', ')}">Patterns</span>
+                        </p>
+                    </div>
+                </div>
+
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h2>Actions</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            <div class="btn-group" role="group">
+                                <button type="button" class="btn btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown">
+                                    Export
+                                </button>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" th:href="@{'export/xml/' + ${siteMapId}}">XML</a></li>
+                                    <li><a class="dropdown-item" th:href="@{'export/text/' + ${siteMapId}}">Text</a></li>
+                                </ul>
+                            </div>
+
+                            <form th:if="${siteMap.status == STATUS_IN_PROGRESS}" 
+                                  th:action="@{'cancel/' + ${siteMapId}}" method="post">
+                                <button type="submit" class="btn btn-warning">Cancel Crawling</button>
+                            </form>
+
+                            <form th:action="@{'remove/' + ${siteMapId}}" method="post" 
+                                  onsubmit="return confirm('Are you sure you want to remove this site map?');">
+                                <button type="submit" class="btn btn-danger">Remove Site Map</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h2>Site Structure</h2>
+                    </div>
+                    <div class="card-body">
+                        <div th:if="${siteMap.status == STATUS_IN_PROGRESS}" class="progress-container">
+                            <h4>Crawling in progress...</h4>
+                            <div class="progress">
+                                <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" 
+                                     role="progressbar" style="width: 0%"></div>
+                            </div>
+                        </div>
+
+                        <div th:if="${siteMap.totalPages == 0}" class="alert alert-info">
+                            No pages have been crawled yet.
+                        </div>
+
+                        <div th:if="${siteMap.totalPages > 0}" class="tree-container">
+                            <div class="tree" id="siteTree">
+                                <!-- Tree will be populated by JavaScript -->
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script th:inline="javascript">
+        // Initialize variables from Thymeleaf
+        const siteMapId = /*[[${siteMapId}]]*/ 'dummy-id';
+        const status = /*[[${siteMap.status}]]*/ 'PENDING';
+        const totalPages = /*[[${siteMap.totalPages}]]*/ 0;
+
+        // Function to update the status
+        function updateStatus() {
+            fetch('/api/status/' + siteMapId)
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('totalPages').textContent = data.totalPages;
+                    document.getElementById('successfulPages').textContent = data.successfulPages;
+                    document.getElementById('failedPages').textContent = data.failedPages;
+                    document.getElementById('duration').textContent = data.durationSeconds + ' seconds';
+
+                    // Update progress bar
+                    if (data.status === 'IN_PROGRESS') {
+                        const progressBar = document.getElementById('progressBar');
+                        if (progressBar) {
+                            const progress = (data.totalPages / 100) * 100;
+                            progressBar.style.width = Math.min(progress, 100) + '%';
+                        }
+
+                        // Schedule next update
+                        setTimeout(updateStatus, 2000);
+                    } else if (data.status === 'COMPLETED' || data.status === 'FAILED') {
+                        // Reload the page to show the final state
+                        window.location.reload();
+                    }
+                })
+                .catch(error => console.error('Error updating status:', error));
+        }
+
+        // Function to build the site tree
+        function buildSiteTree() {
+            fetch('/api/data/' + siteMapId)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! Status: ${response.status}`);
+                    }
+                    return response.text();
+                })
+                .then(text => {
+                    // Try to parse the JSON, handle empty or malformed responses
+                    if (!text || text.trim() === '') {
+                        throw new Error('Empty response received from server');
+                    }
+
+                    try {
+                        return JSON.parse(text);
+                    } catch (e) {
+                        console.error('JSON parse error:', e, 'Response text:', text);
+                        throw new Error('Failed to parse JSON response: ' + e.message);
+                    }
+                })
+                .then(data => {
+                    const treeContainer = document.getElementById('siteTree');
+                    treeContainer.innerHTML = '';
+
+                    if (!data || data.length === 0) {
+                        treeContainer.innerHTML = '<div class="alert alert-info">No pages available yet.</div>';
+                        return;
+                    }
+
+                    const rootNode = data[0];
+                    const ul = document.createElement('ul');
+                    ul.appendChild(createTreeNode(rootNode));
+                    treeContainer.appendChild(ul);
+                })
+                .catch(error => {
+                    console.error('Error building site tree:', error);
+                    document.getElementById('siteTree').innerHTML = 
+                        '<div class="alert alert-danger">Error loading site tree: ' + error.message + '</div>';
+
+                    // If this is a JSON parsing error, try again after a delay
+                    if (error.message.includes('JSON')) {
+                        setTimeout(() => {
+                            console.log('Retrying site tree build...');
+                            buildSiteTree();
+                        }, 5000); // Retry after 5 seconds
+                    }
+                });
+        }
+
+        // Function to create a tree node
+        function createTreeNode(node) {
+            const li = document.createElement('li');
+
+            const pageNode = document.createElement('div');
+            pageNode.className = 'page-node ' + (node.page.isSuccess ? 'success' : 'error');
+
+            const title = node.page.title || node.page.url;
+            pageNode.innerHTML = `
+                <div><strong>${title}</strong></div>
+                <div><small>${node.page.url}</small></div>
+            `;
+
+            li.appendChild(pageNode);
+
+            if (node.children && node.children.length > 0) {
+                const ul = document.createElement('ul');
+                node.children.forEach(child => {
+                    ul.appendChild(createTreeNode(child));
+                });
+                li.appendChild(ul);
+            }
+
+            return li;
+        }
+
+        // Load the site tree if there are pages
+        if (totalPages > 0) {
+            buildSiteTree();
+        }
+
+        // Start status updates if crawling is in progress
+        if (status === 'IN_PROGRESS') {
+            updateStatus();
+        }
+    </script>
+</body>
+</html>
